@@ -241,4 +241,4 @@ LOGGING = {
 }
 
 # WSGI Application
-WSGI_APPLICATION = 'api.wsgi.application'
+WSGI_APPLICATION = 'api.wsgi.app'
