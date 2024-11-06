@@ -1,0 +1,167 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to the Rhythm Experiment</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body
+    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-500"
+  >
+    <div class="container bg-white p-10 rounded-xl shadow-2xl max-w-lg w-full">
+      <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">
+        Welcome to the Rhythm Experiment
+      </h1>
+      <p class="text-lg text-gray-600 mb-8 text-center leading-relaxed">
+        This experiment investigates rhythm perception and synchronization
+        abilities. Participation takes around 15 minutes.
+      </p>
+
+      <!-- Form for Participant Information -->
+      <form
+        id="participantForm"
+        method="post"
+        class="space-y-6"
+        onsubmit="event.preventDefault(); submitForm();"
+      >
+        {% csrf_token %}
+        <div id="message" class="hidden p-4 mb-4 text-sm rounded-lg"></div>
+
+        <!-- Age Field -->
+        <div>
+          <label
+            for="{{ form.age.id_for_label }}"
+            class="block text-left font-medium text-gray-700 mb-2"
+            >Age</label
+          >
+          {{ form.age }}
+          <p id="ageError" class="text-red-600 text-sm"></p>
+        </div>
+
+        <!-- Right-Handed Checkbox -->
+        <div class="flex items-center space-x-3">
+          {{ form.is_right_handed }}
+          <label
+            for="{{ form.is_right_handed.id_for_label }}"
+            class="text-gray-700 font-medium"
+            >Right-handed</label
+          >
+        </div>
+
+        <!-- Music Background Checkbox -->
+        <div class="flex items-center space-x-3">
+          {{ form.has_music_background }}
+          <label
+            for="{{ form.has_music_background.id_for_label }}"
+            class="text-gray-700 font-medium"
+            >Musical Background</label
+          >
+        </div>
+
+        <!-- Email Field -->
+        <div>
+          <label
+            for="{{ form.email.id_for_label }}"
+            class="block text-left font-medium text-gray-700 mb-2"
+            >Email (Optional)</label
+          >
+          {{ form.email }}
+          <p id="emailError" class="text-red-600 text-sm"></p>
+        </div>
+
+        <!-- Agreed to Terms Checkbox -->
+        <div class="flex items-start space-x-3">
+          {{ form.agreed_to_terms }}
+          <label
+            for="{{ form.agreed_to_terms.id_for_label }}"
+            class="text-gray-700 font-medium"
+            >I agree to the terms and confirm that I meet the
+            requirements.</label
+          >
+          <p id="termsError" class="text-red-600 text-sm"></p>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="button"
+          onclick="submitForm()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105"
+        >
+          Start Experiment
+        </button>
+      </form>
+    </div>
+
+    <!-- JavaScript for form submission and error handling -->
+    <script>
+      function getCookie(name) {
+        let value = "; " + document.cookie;
+        let parts = value.split("; " + name + "=");
+        return parts.length === 2 ? parts.pop().split(";").shift() : null;
+      }
+
+      function submitForm() {
+        const form = document.getElementById("participantForm");
+        const formData = new FormData(form);
+
+        fetch("{% url 'welcome_home' %}", {
+          method: "POST",
+          headers: { "X-CSRFToken": getCookie("csrftoken") },
+          body: formData,
+        })
+          .then((response) => {
+            if (response.ok) {
+              // Redirect to practice page if form submission is successful
+              window.location.href = "{% url 'practice' %}";
+            } else {
+              // Parse response JSON for error details if response is not ok
+              return response.json().then((data) => {
+                clearErrors();
+                if (data.errors) {
+                  if (data.errors.age)
+                    document.getElementById("ageError").innerText =
+                      data.errors.age[0];
+                  if (data.errors.email)
+                    document.getElementById("emailError").innerText =
+                      data.errors.email[0];
+                  if (data.errors.agreed_to_terms)
+                    document.getElementById("termsError").innerText =
+                      data.errors.agreed_to_terms[0];
+                  displayMessage(
+                    "Please correct the errors and try again.",
+                    "red"
+                  );
+                }
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Error submitting form:", error);
+            displayMessage(
+              "An unexpected error occurred while submitting the form. Please try again.",
+              "red"
+            );
+          });
+      }
+
+      function clearErrors() {
+        document.getElementById("ageError").innerText = "";
+        document.getElementById("emailError").innerText = "";
+        document.getElementById("termsError").innerText = "";
+      }
+
+      function displayMessage(message, color) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.classList.remove("hidden");
+        messageDiv.innerText = message;
+        messageDiv.style.backgroundColor = color === "green" ? "green" : "red";
+        messageDiv.style.color = "white";
+      }
+    </script>
+  </body>
+</html>

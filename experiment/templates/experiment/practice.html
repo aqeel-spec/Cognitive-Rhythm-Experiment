@@ -1,0 +1,221 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Practice - Rhythm Experiment</title>
+    <!-- Load Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="{% static 'images/favicon.ico' %}" />
+    <style>
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body
+    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-500"
+  >
+    <div
+      class="container bg-white p-10 rounded-xl shadow-2xl max-w-md w-full text-center"
+    >
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">Practice</h1>
+
+      <!-- Displaying context variables for debugging -->
+      <p><strong>Participant ID:</strong> {{ participant_id }}</p>
+      <p><strong>Complexity Level:</strong> {{ complexity_level }}</p>
+      <p><strong>Ear Order:</strong> {{ ear_order }}</p>
+      <p><strong>Rhythm Sequence:</strong> {{ rhythm_sequence.name }}</p>
+
+      <!-- JSON data for rhythm sequence data (using json_script) -->
+      {{ rhythm_sequence_data|json_script:"rhythm-sequence-data" }}
+
+      <!-- Initial Instructions -->
+      <div id="initial-instructions">
+        <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+          In this experiment, you will hear and tap along with rhythms. Please
+          follow the instructions carefully.
+        </p>
+        <button
+          onclick="startHeadphoneCheck()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105"
+        >
+          Start Headphone Check
+        </button>
+      </div>
+
+      <!-- Headphone Check Section -->
+      <div id="headphone-check" class="hidden">
+        <p
+          class="text-lg text-gray-600 mb-4 leading-relaxed"
+          id="headphone-instructions"
+        >
+          Headphone Check: You will hear a sound in your {{ ear_order }} ear.
+          Tap when you hear it.
+        </p>
+        <button
+          onclick="performHeadphoneCheck()"
+          class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out"
+        >
+          Play Sound
+        </button>
+      </div>
+
+      <!-- Practice Rhythm Section -->
+      <div id="practice-rhythm" class="hidden">
+        <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+          You will now hear the rhythm twice for practice. Just listen, do not
+          tap yet.
+        </p>
+        <button
+          onclick="startPracticeRhythm()"
+          class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out"
+        >
+          Start Practice Rhythm
+        </button>
+      </div>
+
+      <!-- Practice Complete Section -->
+      <div id="practice-complete" class="hidden">
+        <p class="text-lg text-gray-700 mb-4">
+          Congratulations! You have completed the practice session.
+        </p>
+        <button
+          onclick="proceedToTrials()"
+          class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md transition duration-150 ease-in-out transform hover:scale-105"
+        >
+          Proceed to Trials
+        </button>
+      </div>
+    </div>
+
+    <!-- JavaScript Code -->
+    <script>
+      // Retrieve rhythm sequence data from json_script
+      const rhythmSequenceData = JSON.parse(
+        document.getElementById("rhythm-sequence-data").textContent
+      );
+
+      let audioContext;
+      let currentTrial = 0;
+
+      function initializeAudioContext() {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext ||
+            window.webkitAudioContext)();
+          console.log("Audio context initialized.");
+        }
+      }
+
+      function startHeadphoneCheck() {
+        document.getElementById("initial-instructions").classList.add("hidden");
+        document.getElementById("headphone-check").classList.remove("hidden");
+      }
+
+      function performHeadphoneCheck() {
+        initializeAudioContext();
+        const ear = "{{ ear_order }}".includes("left") ? "left" : "right";
+        console.log(`Performing headphone check in ${ear} ear.`);
+        playTone(440, 1500, ear);
+        // Proceed to practice rhythm after a delay
+        setTimeout(() => {
+          document.getElementById("headphone-check").classList.add("hidden");
+          document.getElementById("practice-rhythm").classList.remove("hidden");
+        }, 2000);
+      }
+
+      function playTone(frequency, duration, channel) {
+        initializeAudioContext();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const panNode = audioContext.createStereoPanner();
+
+        oscillator.type = "sine";
+        oscillator.frequency.value = frequency;
+
+        // Set panning
+        if (channel === "left") {
+          panNode.pan.setValueAtTime(-1, audioContext.currentTime);
+        } else if (channel === "right") {
+          panNode.pan.setValueAtTime(1, audioContext.currentTime);
+        } else {
+          panNode.pan.setValueAtTime(0, audioContext.currentTime);
+        }
+
+        oscillator.connect(gainNode);
+        gainNode.connect(panNode);
+        panNode.connect(audioContext.destination);
+
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + duration / 1000);
+      }
+
+      function startPracticeRhythm() {
+        document.getElementById("practice-rhythm").classList.add("hidden");
+        // Play the rhythm twice
+        playRhythmSequence(2, () => {
+          document
+            .getElementById("practice-complete")
+            .classList.remove("hidden");
+        });
+      }
+
+      function playRhythmSequence(repetitions, callback) {
+        if (!rhythmSequenceData) {
+          console.error("Rhythm sequence data is not loaded.");
+          return;
+        }
+        initializeAudioContext();
+        const ear = "{{ ear_order }}".includes("left") ? "left" : "right";
+        const panValue = ear === "left" ? -1 : 1;
+
+        let count = 0;
+        function playOnce() {
+          if (count < repetitions) {
+            console.log(`Playing rhythm ${count + 1}/${repetitions}`);
+            let startTime = audioContext.currentTime + 0.5; // Delay start by 0.5 seconds
+            rhythmSequenceData.sequence_data.forEach((ioi, index) => {
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              const panNode = audioContext.createStereoPanner();
+
+              oscillator.type = "sine";
+              oscillator.frequency.value = 440; // Adjust frequency as needed
+
+              panNode.pan.setValueAtTime(panValue, startTime);
+
+              oscillator.connect(gainNode);
+              gainNode.connect(panNode);
+              panNode.connect(audioContext.destination);
+
+              gainNode.gain.setValueAtTime(0.5, startTime);
+
+              const noteDuration = 0.1; // 100 ms
+              oscillator.start(startTime);
+              oscillator.stop(startTime + noteDuration);
+
+              startTime += ioi / 1000; // Convert ioi from ms to seconds
+            });
+
+            count++;
+            // Schedule next repetition after the total duration
+            const totalDuration =
+              rhythmSequenceData.sequence_data.reduce((a, b) => a + b, 0) /
+              1000;
+            setTimeout(playOnce, totalDuration * 1000 + 500); // Add extra delay between repetitions
+          } else {
+            callback();
+          }
+        }
+        playOnce();
+      }
+
+      function proceedToTrials() {
+        alert("Congratulations! You have completed the practice session.");
+        window.location.href = "{% url 'trial' trial_number=1 %}";
+      }
+    </script>
+  </body>
+</html>

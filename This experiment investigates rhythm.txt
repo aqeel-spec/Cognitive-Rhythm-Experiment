@@ -1,0 +1,155 @@
+***************************** Win 01  **************************************
+
+This experiment investigates rhythm perception and synchronization abilities.
+
+Your participation will take approximately 15 minutes. You will hear rhythmic patterns through headphones and tap along with them.
+
+Your data will be saved anonymously using a participant ID. You may stop participating at any time by closing this window.
+
+By clicking 'Start', you agree to participate in this experiment.
+
+Thank you for your time
+
+
+Start Button : Start
+
+
+***************************** Win 02  **************************************
+
+Please enter your participant ID ( 9 digits )
+
+-> Dynamic ID : Primary ID auto created
+
+
+
+***************************** Win 03  **************************************
+
+
+In this experiment, you will hear and tap along with 2 different rhythms.
+
+1. First, each rhythm will be played twice for practice – just listen, no tapping needed.
+2. Then, you will tap along with each rhythm for multiple trials.
+3. Use your right hand index finger to tap in sync with the beats.
+4. The rhythms will be played through one ear at a time.
+5. Each rhythm starts and ends with 3 marker beats – you don’t need to tap these.
+
+
+Next -> Button
+
+***************************** Win 04  **************************************
+
+Important tapping instructions:
+
+1. Use ONLY your right hand's index finger.
+2. Tap on the laptop surface next to the touchpad.
+3. Tap gently but firmly with your fingertip.
+4. DO NOT tap on:
+   - Keys
+   - Mouse buttons
+   - Touchpad
+
+
+Next -> Button
+
+
+***************************** Win 05  **************************************
+
+**Right Earbud Check:**
+
+At first, please make sure to insert your earbuds properly.  
+1. You will hear a single beat  
+2. Tap once when you hear it  
+3. The sound should come from your RIGHT ear  
+4. If you hear it in your LEFT ear, please switch your earbuds  
+
+Start Check -> Button
+
+1-Beap sound will appear 
+
+
+***************************** Win 06  **************************************
+
+**Left Earbud Check**  
+You will hear a beat. Please tap when you hear it.
+
+
+
+***************************** Win 07  **************************************
+
+No tap detected for left ear. Please try again with a firmer tap.
+
+Retry Left Check -> Button
+
+The text in the image reads:
+
+
+
+
+***************************** Win 08  **************************************
+
+You will now hear Rhythm 1 of 2.
+
+1. The rhythm will play twice for practice  
+2. Just LISTEN during practice - do not tap yet  
+3. Notice the 3 marker beats at the start and end  
+4. After practice is finished, you'll tap along this rhythm for 12 trials  
+
+Press 'Start Practice' when ready.
+
+Start Practice -> Button
+
+
+
+***************************** Win 09  **************************************
+
+
+Playing practice for the 2/2 time.  
+Just LISTEN during practice - do not tap yet  
+Notice the 3 marker beats at the start and end  
+
+
+
+***************************** Win 10  **************************************
+
+Ready to start Rhythm 1 trials.
+
+1. Tap along as accurately as possible with EACH beat  
+2. The rhythm will be played only in your LEFT ear  
+3. Remember to ignore the 3 marker beats at start/end  
+4. Please remember to tap with your right index finger  
+5. This is trial 1 of 12  
+
+Press 'Start Recording' when ready.
+
+Start Recording -> Button
+
+
+
+
+
+
+***************************** Win 11 (final Review List)  **************************************
+
+Recording trial 2/12
+
+1. Tap along as accurately as possible with EACH beat  
+2. Remember to ignore the 3 marker beats at start/end  
+3. Remember to tap with your right index finger  
+
+You will have a 15 sec break after the 6th trial  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

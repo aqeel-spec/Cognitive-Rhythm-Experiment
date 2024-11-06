@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rhythm Experiment</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body
+    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-500"
+  >
+    <div
+      class="bg-white p-10 rounded-xl shadow-2xl max-w-md w-full text-center"
+    >
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">Rhythm Experiment</h1>
+      <div id="status" class="text-lg font-semibold text-gray-600 mb-4">
+        Press "Start" to begin.
+      </div>
+      <button
+        id="start-button"
+        class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md"
+      >
+        Start
+      </button>
+      <button
+        id="next-button"
+        onclick="nextTrial()"
+        class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-lg shadow-md hidden"
+      >
+        Next
+      </button>
+      <audio id="rhythm-audio" src="{{ audio_url }}" class="hidden"></audio>
+    </div>
+
+    <script>
+      const audioContext = new (window.AudioContext ||
+        window.webkitAudioContext)();
+      const rhythmAudio = document.getElementById("rhythm-audio");
+      let currentTrial = 1; // Hardcoded starting trial number
+      const totalTrials = 12;
+      const breakInterval = 6;
+      let isPlayingLeftEar = true; // Start with left ear for the first 6 trials
+      let tapTimes = [];
+      let rhythmPlaying = false;
+
+      function initializeAudioContext() {
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+          console.log("AudioContext resumed");
+        }
+      }
+
+      async function playRhythm() {
+        if (!rhythmPlaying) {
+          rhythmPlaying = true;
+          tapTimes = [];
+          document.getElementById(
+            "status"
+          ).textContent = `Playing Rhythm... Trial ${currentTrial} (${
+            isPlayingLeftEar ? "Left" : "Right"
+          } ear, ${currentTrial}/${totalTrials})`;
+
+          document.addEventListener("keydown", recordTap);
+          document.addEventListener("mousedown", recordTap);
+
+          initializeAudioContext();
+          await rhythmAudio.play();
+
+          rhythmPlaying = false;
+          document.getElementById("next-button").classList.remove("hidden");
+          document.getElementById(
+            "status"
+          ).textContent = `Rhythm Complete. Ready for next trial ${
+            currentTrial + 1
+          } / ${totalTrials}.`;
+
+          sendTapData(currentTrial, tapTimes);
+        }
+      }
+
+      function recordTap(event) {
+        if (event.key === " " || event.type === "mousedown") {
+          const time = audioContext.currentTime;
+          tapTimes.push(time);
+          console.log(`Tap recorded at ${time}s`);
+        }
+      }
+
+      async function sendTapData(trialNumber, tapTimes) {
+        try {
+          const response = await fetch(`/trial/${trialNumber}/tap-record/`, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": "{{ csrf_token }}",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ tap_times: tapTimes }),
+          });
+          if (!response.ok) throw new Error("Network response was not ok.");
+          const result = await response.json();
+          console.log("Tap data saved:", result);
+        } catch (error) {
+          console.error("Error sending tap data:", error);
+        }
+      }
+
+      function nextTrial() {
+        currentTrial++;
+
+        if (currentTrial > totalTrials) {
+          alert("Experiment complete! All trials are finished.");
+          document.getElementById("next-button").classList.add("hidden");
+          window.location.href = "{% url 'complete' %}";
+          return;
+        }
+
+        // Alternate between left and right ear after 6 trials
+        if (currentTrial === breakInterval + 1) {
+          isPlayingLeftEar = !isPlayingLeftEar;
+          document.getElementById("status").textContent =
+            "Take a 15-second break.";
+          setTimeout(() => {
+            document.getElementById(
+              "status"
+            ).textContent = `Starting Trial ${currentTrial} (${
+              isPlayingLeftEar ? "Left" : "Right"
+            } ear, ${currentTrial}/${totalTrials})`;
+            document.getElementById("next-button").classList.add("hidden");
+            playRhythm();
+          }, 15000);
+        } else {
+          document.getElementById("next-button").classList.add("hidden");
+          document.getElementById(
+            "status"
+          ).textContent = `Starting Trial ${currentTrial} (${
+            isPlayingLeftEar ? "Left" : "Right"
+          } ear, ${currentTrial}/${totalTrials})`;
+          playRhythm();
+        }
+      }
+
+      document.getElementById("start-button").addEventListener("click", () => {
+        document.getElementById("start-button").classList.add("hidden");
+        playRhythm();
+      });
+    </script>
+  </body>
+</html>

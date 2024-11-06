@@ -11,38 +11,102 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from django.conf.global_settings import LANGUAGES as DJANGO_LANGUAGES
 
-# Quick-start development settings - unsuitable for production
+LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
+LANGUAGES = DJANGO_LANGUAGES
+
+# Quick-start development settings - unsuitable for production!
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=cldztbc4jg&xl0!x673!*v2_=p$$eu)=7*f#d0#zs$44xx-h^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.vercel.app']
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-=cldztbc4jg&xl0!x673!*v2_=p$$eu)=7*f#d0#zs$44xx-h^'
 
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'example'
+    # 'experiment.apps.ExperimentConfig',  # Use the AppConfig for the experiment app
+    'rest_framework',
+    'django_filters',
+    'corsheaders',
+    'drf_spectacular',
+    'django_extensions',
+    'storages',
+    'experiment',
 ]
 
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 25,
+}
+
+# DRF Spectacular Configuration
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Cognitive Rhythm API',
+    'DESCRIPTION': 'Cognitive Rhythm Survey Experiment Service',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'CONTACT': {
+        'name': 'Aqeel Shahzad',
+        'email': 'aqeelshahzad@gmail.com',
+    },
+    'LICENSE': {
+        'name': 'Awesome License',
+        'url': 'https://www.example.com/terms/',
+    },
+}
+
+# CORS and CSRF Settings
+CORS_ALLOW_ALL_ORIGINS = False  # Restrict to specified origins
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "https://django-hello-world-sandy-one.vercel.app",
+    "https://www.django-hello-world-sandy-one.vercel.app",
+]
+
+# CSRF Settings
+if DEBUG:
+    CSRF_COOKIE_SECURE = False  # Allow CSRF cookie over HTTP in development
+    SESSION_COOKIE_SECURE = False
+else:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
+    'django.middleware.security.SecurityMiddleware',  # Keep first
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Keep above CommonMiddleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -55,12 +119,12 @@ ROOT_URLCONF = 'api.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'experiment', 'templates')],  # Updated path to templates
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
-                'django.template.context_processors.request',
+                'django.template.context_processors.request',  # Required by admin
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
@@ -68,15 +132,26 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'api.wsgi.app'
-
-
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-# Note: Django modules for using databases are not support in serverless
-# environments like Vercel. You can use a database over HTTP, hosted elsewhere.
+# Ensure these credentials are correct and the database is accessible
 
-DATABASES = {}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "servey_app",
+        "USER": "shahbazmrasi788",
+        "PASSWORD": "GVOSb4jw6IZJ",
+        "HOST": "ep-flat-silence-24442419.us-east-2.aws.neon.tech",
+        "PORT": "5432",
+        'OPTIONS': {
+            'sslmode': 'require'  # Ensure SSL is enabled if required by your provider
+        }
+    }
+}
+
+ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app', 'localhost', 'wilspun-accounting-be.vercel.app']
+DJANGO_ALLOWED_HOSTS=['127.0.0.1', '.vercel.app', 'localhost', 'wilspun-accounting-be.vercel.app']
 
 
 # Password validation
@@ -97,7 +172,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -109,13 +183,62 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Static files configuration
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # For collectstatic
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]  # Additional static files
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Jazzmin Configuration
+JAZZMIN_SETTINGS = {
+    "site_title": "Servey Admin",
+    "site_header": "Wilspun Admin",
+    "site_brand": "Wilspun Admin Panel",
+    "site_logo": "/images/logo.png",
+    "site_logo_classes": "img-circle",
+    "custom_css": "css/custom.css",  # Custom CSS
+    "welcome_sign": "Welcome to the Servey Experiment Service",
+    "copyright": "Servey App.",
+    "language_chooser": True,
+}
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'file': {  # Optional: Add file logging
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],  # Log to console and file
+            'level': 'INFO',  # Change to DEBUG for more verbosity
+            'propagate': True,
+        },
+        'experiment': {  # Your app's logger
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
+# WSGI Application
+WSGI_APPLICATION = 'api.wsgi.application'
