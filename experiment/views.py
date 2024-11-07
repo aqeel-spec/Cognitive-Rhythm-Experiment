@@ -180,29 +180,25 @@ class TrialView(View):
         }
         return render(request, self.template_name, context)
     
+    
     def post(self, request, trial_number):
         try:
             logger.info(f"Received POST request for trial number: {trial_number}")
 
-            # Extract and parse JSON data from request
+            # Extract raw data from request
             tap_times_raw = request.POST.get('tap_times', '[]')
             stim_onsets_raw = request.POST.get('stim_onsets', '[]')
             background_audio = request.FILES.get('background_audio')
 
-            # Parse tap_times and stim_onsets
-            try:
-                tap_times = json.loads(tap_times_raw)
-                stim_onsets = json.loads(stim_onsets_raw)
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON decoding error: {e}")
-                return JsonResponse({'error': 'Invalid JSON format for tap_times or stim_onsets.'}, status=400)
+            # Parse JSON data
+            tap_times = json.loads(tap_times_raw)
+            stim_onsets = json.loads(stim_onsets_raw)
 
-            # Validate parsed data
-            if not tap_times or not stim_onsets:
-                logger.error("Invalid data received: missing tap_times or stim_onsets.")
-                return JsonResponse({'error': 'Invalid data: missing tap_times or stim_onsets.'}, status=400)
+            # Log parsed values to verify their types
+            logger.info(f"Parsed tap_times: {tap_times} (Type: {type(tap_times)})")
+            logger.info(f"Parsed stim_onsets: {stim_onsets} (Type: {type(stim_onsets)})")
 
-            # Get participant information from the session
+            # Validate participant information
             participant_id = request.session.get('participant_id')
             if not participant_id:
                 logger.error("Participant not found in session.")
@@ -221,57 +217,66 @@ class TrialView(View):
             )
             TapRecord.objects.create(trial=trial, participant=participant, tap_times=tap_times)
 
-            # Set up local audio file path and directory structure
+            # Set up paths for audio and plot
             local_audio_dir = os.path.join(settings.MEDIA_ROOT, f"participant_{participant_id}", f"trial_{trial_number}")
             os.makedirs(local_audio_dir, exist_ok=True)
             local_audio_path = os.path.join(local_audio_dir, "background_audio.wav")
+            output_plot_path = os.path.join(local_audio_dir, "output_plot.png")
 
-            # Save audio file locally
+            logger.info(f"Local audio path: {local_audio_path} (Type: {type(local_audio_path)})")
+            logger.info(f"Output plot path: {output_plot_path} (Type: {type(output_plot_path)})")
+
+            # Save audio locally and upload to S3
             if background_audio:
                 with open(local_audio_path, 'wb') as f:
                     f.write(background_audio.read())
                 logger.info(f"Saved background audio locally to {local_audio_path}")
+
+                s3_audio_path = f"participant_{participant_id}/trial_{trial_number}/background_audio.wav"
+                upload_to_s3(local_audio_path, s3_audio_path)
+                logger.info(f"Uploaded background audio to S3 path: {s3_audio_path}")
             else:
                 logger.error("No background audio received in the request.")
                 return JsonResponse({'error': 'No background audio received.'}, status=400)
 
-            # Upload audio file to S3
-            s3_audio_path = f"participant_{participant_id}/trial_{trial_number}/background_audio.wav"
-            upload_to_s3(local_audio_path, s3_audio_path)
-            logger.info(f"Uploaded background audio to S3 path: {s3_audio_path}")
-
-            # Structure for REPP Analysis, add nesting if needed
+            # Prepare REPP Analysis parameters
             stim_info = {
                 'onsets': stim_onsets,
-                'stim_shifted_onsets': stim_onsets,  # duplicate for any shifting logic in analysis
+                'stim_shifted_onsets': stim_onsets,
                 'markers_onsets': [0.0, 1.0, 2.0],
                 'onset_is_played': [True] * len(stim_onsets)
             }
-            
-            resp_info = {
-                'onsets': tap_times
-            }
+            resp_info = {'onsets': tap_times}
 
-            # Detailed logs to verify structure and types before analysis
-            logger.info(f"REPP analysis parameters:\n - stim_info: {stim_info} (Type: {type(stim_info)})")
-            logger.info(f" - resp_info: {resp_info} (Type: {type(resp_info)})")
+            # Validate parameter types before calling REPPAnalysis
+            if not isinstance(local_audio_path, (str, bytes, os.PathLike)):
+                logger.error(f"local_audio_path must be a string or path-like object, got {type(local_audio_path)}")
+                return JsonResponse({'error': 'Invalid type for local_audio_path.'}, status=500)
+            if not isinstance(output_plot_path, (str, bytes, os.PathLike)):
+                logger.error(f"output_plot_path must be a string or path-like object, got {type(output_plot_path)}")
+                return JsonResponse({'error': 'Invalid type for output_plot_path.'}, status=500)
 
-            # Ensure paths are valid for REPP analysis
-            output_plot_path = os.path.join(local_audio_dir, "output_plot.png")
-            
-            # Perform REPP Analysis with dictionaries as expected inputs
-            config = sms_tapping  # Assuming sms_tapping is your config for REPP
+            # Log REPP analysis parameters to check for correct format
+            logger.info(f"REPP analysis parameters:\n - stim_info: {stim_info} (Type: {type(stim_info)})\n - resp_info: {resp_info} (Type: {type(resp_info)})")
+            logger.info(f"Starting REPP analysis with local_audio_path: {local_audio_path} and output_plot_path: {output_plot_path}")
+
+            # Perform REPP Analysis
+            config = sms_tapping
             analysis = REPPAnalysis(config=config)
+            analysis_result = analysis.do_analysis(
+                stim_info=stim_info,
+                resp_info=resp_info,
+                local_audio_path=local_audio_path,
+                output_plot_path=output_plot_path
+            )
 
-            # Run the analysis
-            analysis_result = analysis.do_analysis(local_audio_path, output_plot_path, stim_info, resp_info)
-
-            # Log and return analysis results
+            # Log and return the analysis result
             if analysis_result:
                 logger.info(f"Analysis result: {analysis_result}")
                 return JsonResponse({'success': True, 'analysis_result': analysis_result})
-
-            return JsonResponse({'error': 'REPP analysis did not return any result'}, status=500)
+            else:
+                logger.error("REPP analysis did not return any result")
+                return JsonResponse({'error': 'REPP analysis did not return any result'}, status=500)
 
         except json.JSONDecodeError:
             logger.error("JSON decoding error for tap_times or stim_onsets.")
@@ -285,8 +290,6 @@ class TrialView(View):
         except Exception as e:
             logger.error(f"Unexpected error in TrialView POST: {e}")
             return JsonResponse({'error': str(e)}, status=500)
-
-
 
 
 
