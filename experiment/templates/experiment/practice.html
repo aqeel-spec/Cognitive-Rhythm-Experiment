@@ -4,7 +4,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>Practice - Rhythm Experiment</title>
-    <!-- Load Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="{% static 'images/favicon.ico' %}" />
     <style>
@@ -19,15 +18,15 @@
     <div
       class="container bg-white p-10 rounded-xl shadow-2xl max-w-md w-full text-center"
     >
-      <h1 class="text-3xl font-bold text-gray-800 mb-6">Practice</h1>
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">Practice Session</h1>
 
-      <!-- Displaying context variables for debugging -->
+      <!-- Debug Information (optional, remove in production) -->
       <p><strong>Participant ID:</strong> {{ participant_id }}</p>
       <p><strong>Complexity Level:</strong> {{ complexity_level }}</p>
       <p><strong>Ear Order:</strong> {{ ear_order }}</p>
       <p><strong>Rhythm Sequence:</strong> {{ rhythm_sequence.name }}</p>
 
-      <!-- JSON data for rhythm sequence data (using json_script) -->
+      <!-- JSON data for rhythm sequence -->
       {{ rhythm_sequence_data|json_script:"rhythm-sequence-data" }}
 
       <!-- Initial Instructions -->
@@ -46,10 +45,7 @@
 
       <!-- Headphone Check Section -->
       <div id="headphone-check" class="hidden">
-        <p
-          class="text-lg text-gray-600 mb-4 leading-relaxed"
-          id="headphone-instructions"
-        >
+        <p class="text-lg text-gray-600 mb-4 leading-relaxed">
           Headphone Check: You will hear a sound in your {{ ear_order }} ear.
           Tap when you hear it.
         </p>
@@ -91,11 +87,9 @@
 
     <!-- JavaScript Code -->
     <script>
-      // Retrieve rhythm sequence data from json_script
       const rhythmSequenceData = JSON.parse(
         document.getElementById("rhythm-sequence-data").textContent
       );
-
       let audioContext;
       let currentTrial = 0;
 
@@ -117,7 +111,7 @@
         const ear = "{{ ear_order }}".includes("left") ? "left" : "right";
         console.log(`Performing headphone check in ${ear} ear.`);
         playTone(440, 1500, ear);
-        // Proceed to practice rhythm after a delay
+
         setTimeout(() => {
           document.getElementById("headphone-check").classList.add("hidden");
           document.getElementById("practice-rhythm").classList.remove("hidden");
@@ -132,29 +126,22 @@
 
         oscillator.type = "sine";
         oscillator.frequency.value = frequency;
-
-        // Set panning
-        if (channel === "left") {
-          panNode.pan.setValueAtTime(-1, audioContext.currentTime);
-        } else if (channel === "right") {
-          panNode.pan.setValueAtTime(1, audioContext.currentTime);
-        } else {
-          panNode.pan.setValueAtTime(0, audioContext.currentTime);
-        }
+        panNode.pan.setValueAtTime(
+          channel === "left" ? -1 : 1,
+          audioContext.currentTime
+        );
 
         oscillator.connect(gainNode);
         gainNode.connect(panNode);
         panNode.connect(audioContext.destination);
 
         gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-
         oscillator.start();
         oscillator.stop(audioContext.currentTime + duration / 1000);
       }
 
       function startPracticeRhythm() {
         document.getElementById("practice-rhythm").classList.add("hidden");
-        // Play the rhythm twice
         playRhythmSequence(2, () => {
           document
             .getElementById("practice-complete")
@@ -167,6 +154,7 @@
           console.error("Rhythm sequence data is not loaded.");
           return;
         }
+
         initializeAudioContext();
         const ear = "{{ ear_order }}".includes("left") ? "left" : "right";
         const panValue = ear === "left" ? -1 : 1;
@@ -175,14 +163,15 @@
         function playOnce() {
           if (count < repetitions) {
             console.log(`Playing rhythm ${count + 1}/${repetitions}`);
-            let startTime = audioContext.currentTime + 0.5; // Delay start by 0.5 seconds
-            rhythmSequenceData.sequence_data.forEach((ioi, index) => {
+            let startTime = audioContext.currentTime + 0.5;
+
+            rhythmSequenceData.sequence_data.forEach((ioi) => {
               const oscillator = audioContext.createOscillator();
               const gainNode = audioContext.createGain();
               const panNode = audioContext.createStereoPanner();
 
               oscillator.type = "sine";
-              oscillator.frequency.value = 440; // Adjust frequency as needed
+              oscillator.frequency.value = 440;
 
               panNode.pan.setValueAtTime(panValue, startTime);
 
@@ -192,19 +181,18 @@
 
               gainNode.gain.setValueAtTime(0.5, startTime);
 
-              const noteDuration = 0.1; // 100 ms
+              const noteDuration = 0.1;
               oscillator.start(startTime);
               oscillator.stop(startTime + noteDuration);
 
-              startTime += ioi / 1000; // Convert ioi from ms to seconds
+              startTime += ioi / 1000;
             });
 
             count++;
-            // Schedule next repetition after the total duration
             const totalDuration =
               rhythmSequenceData.sequence_data.reduce((a, b) => a + b, 0) /
               1000;
-            setTimeout(playOnce, totalDuration * 1000 + 500); // Add extra delay between repetitions
+            setTimeout(playOnce, totalDuration * 1000 + 500);
           } else {
             callback();
           }

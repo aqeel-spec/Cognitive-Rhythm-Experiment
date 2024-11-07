@@ -7,11 +7,7 @@
       href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
       rel="stylesheet"
     />
-    <style>
-      .hidden {
-        display: none;
-      }
-    </style>
+    <meta name="csrf-token" content="{{ csrf_token }}" />
   </head>
   <body
     class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-500"
@@ -21,13 +17,13 @@
     >
       <h1 class="text-3xl font-bold text-gray-800 mb-6">Rhythm Experiment</h1>
       <div id="status" class="text-lg font-semibold text-gray-600 mb-4">
-        Press "Start" to begin.
+        Press "Start Trial" to begin.
       </div>
       <button
         id="start-button"
         class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md"
       >
-        Start
+        Start Trial
       </button>
       <button
         id="next-button"
@@ -36,52 +32,135 @@
       >
         Next
       </button>
-      <audio id="rhythm-audio" src="{{ audio_url }}" class="hidden"></audio>
+      <div class="mt-4 text-gray-600 text-sm">
+        Trial <span id="current-trial">1</span> of 12
+      </div>
     </div>
-
     <script>
       const audioContext = new (window.AudioContext ||
         window.webkitAudioContext)();
-      const rhythmAudio = document.getElementById("rhythm-audio");
-      let currentTrial = 1; // Hardcoded starting trial number
+      let currentTrial = parseInt(
+        "{{ trial_number|default:'1'|escapejs }}",
+        10
+      );
       const totalTrials = 12;
       const breakInterval = 6;
-      let isPlayingLeftEar = true; // Start with left ear for the first 6 trials
+      const audioUrl = "{{ audio_url }}";
+      const csrfToken = document
+        .querySelector('meta[name="csrf-token"]')
+        .getAttribute("content");
+
       let tapTimes = [];
+      let stimOnsets = [];
       let rhythmPlaying = false;
+      let microphoneStream = null;
+      let mediaRecorder;
+      let recordedChunks = [];
 
       function initializeAudioContext() {
         if (audioContext.state === "suspended") {
-          audioContext.resume();
-          console.log("AudioContext resumed");
+          audioContext.resume().then(() => console.log("AudioContext resumed"));
         }
+      }
+
+      async function startMicrophoneRecording() {
+        try {
+          microphoneStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          mediaRecorder = new MediaRecorder(microphoneStream);
+
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              recordedChunks.push(event.data);
+              console.log("Recorded chunk added:", event.data.size, "bytes");
+            }
+          };
+
+          mediaRecorder.start();
+          console.log("Microphone recording started.");
+        } catch (error) {
+          console.error("Error accessing microphone:", error);
+          document.getElementById("status").textContent =
+            "Microphone access required for background noise.";
+        }
+      }
+
+      function stopMicrophoneRecording() {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+          console.log("Microphone recording stopped.");
+        }
+        if (microphoneStream) {
+          microphoneStream.getTracks().forEach((track) => track.stop());
+        }
+      }
+
+      function countdownAndPlay() {
+        let countdown = 3;
+        document.getElementById(
+          "status"
+        ).textContent = `Starting in ${countdown}...`;
+        const countdownInterval = setInterval(() => {
+          countdown--;
+          if (countdown > 0) {
+            document.getElementById(
+              "status"
+            ).textContent = `Starting in ${countdown}...`;
+          } else {
+            clearInterval(countdownInterval);
+            startMicrophoneRecording();
+            playRhythm();
+          }
+        }, 1000);
       }
 
       async function playRhythm() {
         if (!rhythmPlaying) {
           rhythmPlaying = true;
           tapTimes = [];
-          document.getElementById(
-            "status"
-          ).textContent = `Playing Rhythm... Trial ${currentTrial} (${
-            isPlayingLeftEar ? "Left" : "Right"
-          } ear, ${currentTrial}/${totalTrials})`;
+          stimOnsets = [];
+          document.getElementById("status").textContent = "Playing Rhythm...";
+          document.getElementById("next-button").classList.add("hidden");
 
           document.addEventListener("keydown", recordTap);
           document.addEventListener("mousedown", recordTap);
 
-          initializeAudioContext();
-          await rhythmAudio.play();
+          try {
+            const audio = new Audio(audioUrl);
+            audio.crossOrigin = "anonymous";
+            audio.onplay = () => {
+              const startTime = audioContext.currentTime;
+              stimOnsets.push(startTime);
+              console.log("Audio started at:", startTime);
+            };
+            audio.onended = () => {
+              rhythmPlaying = false;
+              document.removeEventListener("keydown", recordTap);
+              document.removeEventListener("mousedown", recordTap);
+              stopMicrophoneRecording();
 
-          rhythmPlaying = false;
-          document.getElementById("next-button").classList.remove("hidden");
-          document.getElementById(
-            "status"
-          ).textContent = `Rhythm Complete. Ready for next trial ${
-            currentTrial + 1
-          } / ${totalTrials}.`;
-
-          sendTapData(currentTrial, tapTimes);
+              setTimeout(() => {
+                document.getElementById("status").textContent =
+                  "Rhythm Complete";
+                document
+                  .getElementById("next-button")
+                  .classList.remove("hidden");
+                convertToWavAndSendData(
+                  currentTrial,
+                  tapTimes,
+                  stimOnsets,
+                  recordedChunks
+                );
+                recordedChunks = []; // Reset for the next trial
+              }, 500);
+            };
+            await audio.play();
+          } catch (error) {
+            console.error("Error playing audio:", error);
+            document.getElementById("status").textContent =
+              "Error: Audio not supported or file not found.";
+          }
         }
       }
 
@@ -89,66 +168,145 @@
         if (event.key === " " || event.type === "mousedown") {
           const time = audioContext.currentTime;
           tapTimes.push(time);
-          console.log(`Tap recorded at ${time}s`);
+          console.log(`Tap recorded at ${time.toFixed(3)} seconds`);
         }
       }
 
-      async function sendTapData(trialNumber, tapTimes) {
-        try {
-          const response = await fetch(`/trial/${trialNumber}/tap-record/`, {
-            method: "POST",
-            headers: {
-              "X-CSRFToken": "{{ csrf_token }}",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ tap_times: tapTimes }),
+      function convertToWavAndSendData(
+        trialNumber,
+        tapTimes,
+        stimOnsets,
+        recordedChunks
+      ) {
+        const audioBlob = new Blob(recordedChunks, { type: "audio/webm" });
+
+        const fileReader = new FileReader();
+        fileReader.onload = function () {
+          const arrayBuffer = fileReader.result;
+          audioContext.decodeAudioData(arrayBuffer, function (buffer) {
+            const wavBlob = createWavBlob(buffer);
+            sendTapData(trialNumber, tapTimes, stimOnsets, wavBlob);
           });
-          if (!response.ok) throw new Error("Network response was not ok.");
-          const result = await response.json();
-          console.log("Tap data saved:", result);
+        };
+        fileReader.readAsArrayBuffer(audioBlob);
+      }
+
+      function createWavBlob(buffer) {
+        const numOfChannels = buffer.numberOfChannels;
+        const length = buffer.length * numOfChannels * 2 + 44;
+        const wavBuffer = new ArrayBuffer(length);
+        const view = new DataView(wavBuffer);
+
+        writeString(view, 0, "RIFF");
+        view.setUint32(4, 36 + buffer.length * numOfChannels * 2, true);
+        writeString(view, 8, "WAVE");
+        writeString(view, 12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numOfChannels, true);
+        view.setUint32(24, buffer.sampleRate, true);
+        view.setUint32(28, buffer.sampleRate * numOfChannels * 2, true);
+        view.setUint16(32, numOfChannels * 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, "data");
+        view.setUint32(40, buffer.length * numOfChannels * 2, true);
+
+        let offset = 44;
+        for (let i = 0; i < buffer.length; i++) {
+          for (let channel = 0; channel < numOfChannels; channel++) {
+            const sample = buffer.getChannelData(channel)[i] * 0x7fff;
+            view.setInt16(offset, sample, true);
+            offset += 2;
+          }
+        }
+
+        return new Blob([view], { type: "audio/wav" });
+      }
+
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      async function sendTapData(trialNumber, tapTimes, stimOnsets, audioBlob) {
+        try {
+          const formData = new FormData();
+          formData.append("trial_number", trialNumber);
+          formData.append("tap_times", JSON.stringify(tapTimes));
+          formData.append("stim_onsets", JSON.stringify(stimOnsets));
+          formData.append(
+            "background_audio",
+            audioBlob,
+            `background_noise_trial_${trialNumber}.wav`
+          );
+
+          console.log("Sending FormData contents:");
+          formData.forEach((value, key) => {
+            console.log(`${key}:`, value);
+          });
+
+          const response = await fetch(`/trial/${trialNumber}/`, {
+            method: "POST",
+            headers: { "X-CSRFToken": csrfToken },
+            body: formData,
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            console.log("Response from server:", result);
+          } else {
+            console.error("Server responded with an error:", response.status);
+            document.getElementById("status").textContent =
+              "Error submitting data. Please try again.";
+          }
         } catch (error) {
           console.error("Error sending tap data:", error);
+          document.getElementById("status").textContent =
+            "Error submitting data. Please check the console for details.";
         }
       }
 
       function nextTrial() {
-        currentTrial++;
-
-        if (currentTrial > totalTrials) {
-          alert("Experiment complete! All trials are finished.");
-          document.getElementById("next-button").classList.add("hidden");
-          window.location.href = "{% url 'complete' %}";
-          return;
-        }
-
-        // Alternate between left and right ear after 6 trials
-        if (currentTrial === breakInterval + 1) {
-          isPlayingLeftEar = !isPlayingLeftEar;
-          document.getElementById("status").textContent =
-            "Take a 15-second break.";
-          setTimeout(() => {
-            document.getElementById(
-              "status"
-            ).textContent = `Starting Trial ${currentTrial} (${
-              isPlayingLeftEar ? "Left" : "Right"
-            } ear, ${currentTrial}/${totalTrials})`;
-            document.getElementById("next-button").classList.add("hidden");
-            playRhythm();
-          }, 15000);
+        if (currentTrial < totalTrials) {
+          currentTrial++;
+          document.getElementById("current-trial").textContent = currentTrial;
+          if (currentTrial % breakInterval === 1 && currentTrial !== 1) {
+            startBreak();
+          } else {
+            countdownAndPlay();
+          }
         } else {
+          document.getElementById("status").textContent =
+            "Experiment complete! Thank you!";
           document.getElementById("next-button").classList.add("hidden");
-          document.getElementById(
-            "status"
-          ).textContent = `Starting Trial ${currentTrial} (${
-            isPlayingLeftEar ? "Left" : "Right"
-          } ear, ${currentTrial}/${totalTrials})`;
-          playRhythm();
         }
       }
 
-      document.getElementById("start-button").addEventListener("click", () => {
-        document.getElementById("start-button").classList.add("hidden");
-        playRhythm();
+      function startBreak() {
+        let breakTime = 15;
+        document.getElementById(
+          "status"
+        ).textContent = `Break time: ${breakTime} seconds`;
+        const breakInterval = setInterval(() => {
+          breakTime--;
+          document.getElementById(
+            "status"
+          ).textContent = `Break time: ${breakTime} seconds`;
+          if (breakTime <= 0) {
+            clearInterval(breakInterval);
+            countdownAndPlay();
+          }
+        }, 1000);
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("start-button")
+          .addEventListener("click", () => {
+            initializeAudioContext();
+            countdownAndPlay();
+          });
       });
     </script>
   </body>

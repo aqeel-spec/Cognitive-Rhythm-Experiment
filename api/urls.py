@@ -13,6 +13,7 @@ from experiment.views import (
     # StartExperimentAPIView,
     # RecordTapAPIView,
 )
+from django.http import HttpResponseNotFound
 
 router = routers.DefaultRouter()
 router.register(r'rhythm-sequences', RhythmSequenceViewSet)
@@ -36,6 +37,16 @@ urlpatterns += i18n_patterns(
     path('admin/', admin.site.urls),
 )
 
+# If in DEBUG mode, serve media and static files through Django
 if settings.DEBUG:
+    # Serve media files from MEDIA_URL (e.g., /media/...)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+    # Serve static files from STATIC_URL (e.g., /static/...)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+
+# Optional: add a fallback to prevent favicon.ico 404 errors
+urlpatterns += [
+    path('favicon.ico', lambda request: HttpResponseNotFound(), name='favicon'),
+]

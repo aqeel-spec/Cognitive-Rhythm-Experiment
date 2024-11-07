@@ -1,19 +1,25 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.contrib.postgres.fields import JSONField 
+from django.contrib.postgres.fields import JSONField
+
+
+
+
 
 class Participant(models.Model):
     age = models.IntegerField()
     is_right_handed = models.BooleanField(default=True)
     has_music_background = models.BooleanField(default=False)
-    email = models.EmailField(blank=True, null=True)
+    email = models.EmailField(unique=True, blank=True, null=True)
     agreed_to_terms = models.BooleanField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    def __str__(self): 
         return f"Participant {self.id}"
 
+
 class ExperimentSession(models.Model):
-    participant = models.OneToOneField(Participant, on_delete=models.CASCADE)
+    participant = models.OneToOneField(Participant, on_delete=models.CASCADE)  # Enforce uniqueness
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(blank=True, null=True)
     complexity_level = models.CharField(max_length=50, choices=[('simple', 'Simple'), ('complex', 'Complex')], default='simple')
@@ -22,6 +28,8 @@ class ExperimentSession(models.Model):
     def __str__(self):
         return f"Session {self.id} for Participant {self.participant.id}"
 
+
+
 class RhythmSequence(models.Model):
     RHYTHM_TYPE_CHOICES = [
         ('simple', 'Simple'),
@@ -29,7 +37,7 @@ class RhythmSequence(models.Model):
     ]
 
     name = models.CharField(max_length=100, unique=True)
-    rhythm_type = models.CharField(max_length=10, choices=RHYTHM_TYPE_CHOICES, default='simple')  # Use default as a parameter here
+    rhythm_type = models.CharField(max_length=10, choices=RHYTHM_TYPE_CHOICES, default='simple')
     sequence_data = models.JSONField(help_text="Enter the rhythm sequence in JSON format")
 
     def __str__(self):
@@ -37,10 +45,11 @@ class RhythmSequence(models.Model):
 
 class Trial(models.Model):
     session = models.ForeignKey(ExperimentSession, on_delete=models.CASCADE)
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)  # Ensure this is defined
     trial_number = models.IntegerField()
     rhythm_sequence = models.ForeignKey(RhythmSequence, on_delete=models.CASCADE)
     is_practice = models.BooleanField(default=False)
-    sequence_order = models.IntegerField(default=1)  # Manual sequence control
+    sequence_order = models.IntegerField(default=1)
 
     def __str__(self):
         return f"Trial {self.trial_number} - Session {self.session.id}"
@@ -48,18 +57,20 @@ class Trial(models.Model):
 class Analysis(models.Model):
     trial = models.OneToOneField(Trial, on_delete=models.CASCADE)
     reaction_time = models.DurationField(blank=True, null=True)
-    response = models.TextField(blank=True, null=True)  # Store JSON or plain text response data
+    response_data = models.JSONField(blank=True, null=True, help_text="Structured response data in JSON format")
 
     def __str__(self):
         return f"Analysis for Trial {self.trial.trial_number}"
 
-
-# New model for TapRecord
 class TapRecord(models.Model):
     trial = models.ForeignKey(Trial, on_delete=models.CASCADE, related_name='tap_records')
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     tap_times = models.JSONField(help_text="List of tap timestamps")
+    average_reaction_time = models.DurationField(blank=True, null=True, help_text="Average reaction time per tap")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"TapRecord for Trial {self.trial.trial_number} by Participant {self.participant.id}"
+
+
+
