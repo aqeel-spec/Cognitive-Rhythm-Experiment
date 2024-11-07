@@ -174,7 +174,8 @@ class TrialView(View):
         # Generate the audio file if it doesn't exist
         if not os.path.exists(audio_path):
             logger.debug(f"Generating audio file for {audio_filename}")
-            generate_rhythm_audio(rhythm_sequence.sequence_data, audio_dir, audio_filename)
+            # generate_rhythm_audio(rhythm_sequence.sequence_data, audio_dir, audio_filename)
+            generate_rhythm_audio(rhythm_sequence.sequence_data, audio_filename)
 
         audio_url = os.path.join(settings.MEDIA_URL, f"rhythm_audios/{audio_filename}")
         context = {
