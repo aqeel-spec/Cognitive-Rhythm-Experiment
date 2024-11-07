@@ -19,7 +19,7 @@ SECRET_KEY = env('SECRET_KEY')
 # Security settings
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS')
+# ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS')
 
 # Application definition
 INSTALLED_APPS = [
@@ -52,6 +52,13 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'cognitive-rhythm-experiment.onrender.com',
+]
+
 
 ROOT_URLCONF = 'api.urls'
 
