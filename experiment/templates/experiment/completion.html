@@ -2,10 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Experiment Complete</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
   </head>
-  <body>
-    <h1>Thank you for participating!</h1>
-    <p>Your data has been saved successfully.</p>
+  <body
+    class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-700 via-purple-600 to-pink-500"
+  >
+    <div
+      class="bg-white p-10 rounded-xl shadow-2xl max-w-md w-full text-center"
+    >
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">Thank You!</h1>
+      <p class="text-lg text-gray-600 mb-4">
+        Your participation is greatly appreciated.
+      </p>
+      <p class="text-gray-600">Your data has been saved successfully.</p>
+    </div>
   </body>
 </html>

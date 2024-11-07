@@ -277,9 +277,12 @@
             countdownAndPlay();
           }
         } else {
+          // Redirect to completion page
           document.getElementById("status").textContent =
-            "Experiment complete! Thank you!";
-          document.getElementById("next-button").classList.add("hidden");
+            "Congratulations on completing the experiment!";
+          setTimeout(() => {
+            window.location.href = "/complete/"; // Redirect to completion page
+          }, 2000); // 2-second delay before redirect
         }
       }
 
